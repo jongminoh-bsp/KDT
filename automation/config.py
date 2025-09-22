@@ -4,7 +4,7 @@ KDT 프로젝트 설정 파일
 """
 
 # 애플리케이션 분석 대상 경로
-APPLICATION_SOURCE_PATH = "/home/ojm/skyline_system_demo"
+APPLICATION_SOURCE_PATH = "/home/ojm/KDT/app"
 
 # ECR 이미지 설정
 ECR_REGISTRY = "646558765106.dkr.ecr.ap-northeast-2.amazonaws.com"
