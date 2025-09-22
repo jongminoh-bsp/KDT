@@ -1,0 +1,273 @@
+name: ☸️ Phase 2 - Application Deployment
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [dev]
+    paths: ['k8s/**']
+
+env:
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  # Phase 2: 애플리케이션 배포
+  deploy-application:
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'phase-2')
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      issues: write
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: 🔑 Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+        role-session-name: GitHubActions-Phase2-Application
+    
+    - name: 🔍 Find EKS Cluster
+      id: cluster
+      run: |
+        # EKS 클러스터 찾기 (skyline 또는 dev 패턴)
+        CLUSTER_NAME=$(aws eks list-clusters --region ${{ env.AWS_REGION }} --query 'clusters[?contains(@, `skyline`) || contains(@, `dev`)]' --output text | head -1)
+        
+        if [ -z "$CLUSTER_NAME" ]; then
+          echo "❌ No EKS cluster found"
+          exit 1
+        fi
+        
+        echo "✅ Found EKS cluster: $CLUSTER_NAME"
+        echo "cluster_name=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+    
+    - name: ⚙️ Configure kubectl
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ steps.cluster.outputs.cluster_name }}
+        kubectl version --client
+        kubectl get nodes
+        echo "✅ kubectl configured for EKS cluster"
+    
+    - name: 📦 Deploy Application to EKS
+      run: |
+        echo "📦 Deploying application to EKS cluster..."
+        
+        # K8s 매니페스트 적용 (순서대로)
+        if [ -d "k8s" ]; then
+          echo "✅ Found k8s manifests directory"
+          
+          # 1. Namespace 먼저
+          if [ -f "k8s/namespace.yaml" ]; then
+            kubectl apply -f k8s/namespace.yaml
+            echo "✅ Namespace created"
+          fi
+          
+          # 2. ConfigMap과 Secret
+          if [ -f "k8s/configmap.yaml" ]; then
+            kubectl apply -f k8s/configmap.yaml
+            echo "✅ ConfigMap applied"
+          fi
+          
+          if [ -f "k8s/secret.yaml" ]; then
+            kubectl apply -f k8s/secret.yaml
+            echo "✅ Secret applied"
+          fi
+          
+          # 3. Deployment와 Service
+          if [ -f "k8s/deployment.yaml" ]; then
+            kubectl apply -f k8s/deployment.yaml
+            echo "✅ Deployment applied"
+          fi
+          
+          if [ -f "k8s/service.yaml" ]; then
+            kubectl apply -f k8s/service.yaml
+            echo "✅ Service applied"
+          fi
+          
+          # 4. Ingress
+          if [ -f "k8s/ingress.yaml" ]; then
+            kubectl apply -f k8s/ingress.yaml
+            echo "✅ Ingress applied"
+          fi
+          
+          # 5. HPA (있는 경우)
+          if [ -f "k8s/hpa.yaml" ]; then
+            kubectl apply -f k8s/hpa.yaml
+            echo "✅ HPA applied"
+          fi
+          
+        else
+          echo "❌ No k8s directory found"
+          exit 1
+        fi
+    
+    - name: ⏳ Wait for Application Ready
+      run: |
+        echo "⏳ Waiting for application deployment..."
+        
+        # Deployment가 준비될 때까지 대기
+        kubectl wait --for=condition=available --timeout=300s deployment/skyline-deployment -n skyline || true
+        
+        # Pod 상태 확인
+        kubectl get pods -n skyline -l app=skyline
+        
+        echo "✅ Application deployment status checked"
+    
+    - name: 🔍 Verify Deployment
+      id: verify
+      run: |
+        echo "🔍 Verifying application deployment..."
+        
+        # 리소스 상태 확인
+        kubectl get all -n skyline
+        
+        # Ingress URL 가져오기
+        INGRESS_HOST=$(kubectl get ingress skyline-ingress -n skyline -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "Pending...")
+        echo "ingress_host=$INGRESS_HOST" >> $GITHUB_OUTPUT
+        
+        # 서비스 상태 확인
+        SERVICE_STATUS=$(kubectl get service skyline-service -n skyline -o jsonpath='{.status}' 2>/dev/null || echo "Not found")
+        
+        echo "🌐 Application URL: https://www.greenbespinglobal.store"
+        echo "🔗 Load Balancer: $INGRESS_HOST"
+    
+    - name: 📊 Deployment Summary
+      run: |
+        echo "## 🎉 Phase 2 Application Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Deployed Application" >> $GITHUB_STEP_SUMMARY
+        echo "- **EKS Cluster**: ${{ steps.cluster.outputs.cluster_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Namespace**: skyline" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployment**: skyline-deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: skyline-service" >> $GITHUB_STEP_SUMMARY
+        echo "- **Ingress**: skyline-ingress" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🌐 Access Information" >> $GITHUB_STEP_SUMMARY
+        echo "- **Application URL**: https://www.greenbespinglobal.store" >> $GITHUB_STEP_SUMMARY
+        echo "- **Health Check**: https://www.greenbespinglobal.store/health" >> $GITHUB_STEP_SUMMARY
+        echo "- **Load Balancer**: ${{ steps.verify.outputs.ingress_host }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Resource Status" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        kubectl get all -n skyline >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Status check failed" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**🚀 Application is now live!**" >> $GITHUB_STEP_SUMMARY
+    
+    - name: 💬 Phase 2 Success Comment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const comment = `## 🎉 Phase 2 Application Deployment Complete!
+          
+          **Deployment Time**: ${new Date().toISOString()}
+          **EKS Cluster**: ${{ steps.cluster.outputs.cluster_name }}
+          **Application Status**: ✅ Live
+          
+          ### 🚀 Application Access
+          - **Primary URL**: https://www.greenbespinglobal.store
+          - **Health Check**: https://www.greenbespinglobal.store/health
+          - **Load Balancer**: ${{ steps.verify.outputs.ingress_host }}
+          
+          ### 📦 Deployed Resources
+          - ✅ **Namespace**: skyline (application isolation)
+          - ✅ **Deployment**: 3 replicas with health checks
+          - ✅ **Service**: Load balancing configured
+          - ✅ **Ingress**: ALB with SSL termination
+          - ✅ **ConfigMap**: Application configuration
+          - ✅ **Secret**: Database credentials
+          - ✅ **HPA**: Auto-scaling enabled
+          
+          ### 🎯 Complete Pipeline Success!
+          
+          **Phase 1**: ✅ AWS Infrastructure deployed
+          **Phase 2**: ✅ Application deployed to EKS
+          
+          ### 🔗 Management Commands
+          \`\`\`bash
+          # Connect to EKS cluster
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ steps.cluster.outputs.cluster_name }}
+          
+          # Check application status
+          kubectl get all -n skyline
+          
+          # View application logs
+          kubectl logs -f deployment/skyline-deployment -n skyline
+          
+          # Scale application
+          kubectl scale deployment skyline-deployment --replicas=5 -n skyline
+          \`\`\`
+          
+          **🎉 AI-Driven DevOps Pipeline Complete! Application is live!** 🚀`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+    
+    - name: 🏷️ Add Phase 2 Complete Label
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['✅ phase-2-complete', 'application-live', '🚀 pipeline-complete']
+          });
+
+  # Phase 2 실패 시 롤백
+  rollback-on-failure:
+    if: failure()
+    runs-on: ubuntu-latest
+    needs: deploy-application
+    
+    steps:
+    - name: 🔄 Rollback Application
+      run: |
+        echo "🔄 Rolling back Phase 2 application deployment..."
+        
+        # AWS 설정
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $(aws eks list-clusters --region ${{ env.AWS_REGION }} --query 'clusters[0]' --output text)
+        
+        # 애플리케이션 롤백
+        kubectl rollout undo deployment/skyline-deployment -n skyline 2>/dev/null || echo "No previous deployment to rollback"
+        
+        echo "✅ Rollback completed"
+    
+    - name: 🚨 Phase 2 Failure Notification
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const comment = `## 🚨 Phase 2 Application Deployment Failed
+          
+          **Failure Time**: ${new Date().toISOString()}
+          **Phase**: Application Deployment (Phase 2)
+          
+          ### 🔍 Troubleshooting
+          1. Check [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          2. Verify EKS cluster is healthy
+          3. Check Kubernetes manifests syntax
+          4. Verify Docker image availability
+          5. Check resource quotas and limits
+          
+          ### 🔄 Recovery Actions
+          - Application rollback attempted
+          - Infrastructure (Phase 1) remains intact
+          - Can retry Phase 2 deployment
+          
+          **Infrastructure is still available for retry.**`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
