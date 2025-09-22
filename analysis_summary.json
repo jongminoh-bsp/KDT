@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
-  "timestamp": "2025-09-22 23:19:09",
-=======
-  "timestamp": "2025-09-22 23:12:27",
->>>>>>> 3e6ba6a3664f634151cd91f0646279dae3d10c9b
+  "timestamp": "2025-09-22 23:19:47",
   "repo_path": "/home/ojm/skyline_system_demo",
   "summary": {
     "app_type": "java-maven",
