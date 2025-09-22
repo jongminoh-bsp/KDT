@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-09-22 22:45:05",
+  "repo_path": "/home/ojm/skyline_system_demo",
+  "summary": {
+    "app_type": "java-maven",
+    "framework": "spring-boot",
+    "database_required": true,
+    "replicas": 3,
+    "memory_limit": "2Gi",
+    "estimated_cost": 203
+  },
+  "recommendations": {
+    "terraform_modules": [
+      "vpc",
+      "eks",
+      "rds",
+      "elasticache"
+    ],
+    "k8s_resources": [
+      "deployment",
+      "service",
+      "ingress",
+      "configmap",
+      "secret",
+      "hpa"
+    ],
+    "optimizations": [
+      "monitoring",
+      "logging",
+      "jvm_tuning",
+      "database_read_replica"
+    ]
+  }
+}
