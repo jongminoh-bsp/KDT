@@ -1,0 +1,150 @@
+name: 🚀 Application Deployment to EKS
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'EKS Cluster Name'
+        required: true
+        default: 'skyline-dev-cluster'
+      namespace:
+        description: 'Kubernetes Namespace'
+        required: true
+        default: 'skyline'
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 646558765106.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPOSITORY: skyline-dev
+  IMAGE_TAG: latest
+
+jobs:
+  deploy-application:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: 🔑 Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+        role-session-name: GitHubActions-AppDeploy
+    
+    - name: ⚙️ Configure kubectl
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ github.event.inputs.cluster_name }}
+        kubectl version --client
+        kubectl cluster-info
+    
+    - name: 🔍 Verify EKS Cluster
+      run: |
+        echo "🔍 Checking EKS cluster status..."
+        kubectl get nodes
+        kubectl get namespaces
+    
+    - name: 📦 Apply Kubernetes Manifests
+      run: |
+        echo "📦 Deploying application to EKS..."
+        
+        # Apply manifests in order
+        if [ -d "generated_k8s" ]; then
+          echo "✅ Found generated K8s manifests"
+          
+          # 1. Namespace first
+          kubectl apply -f generated_k8s/namespace.yaml
+          
+          # 2. ConfigMap and Secret
+          kubectl apply -f generated_k8s/configmap.yaml
+          if [ -f "generated_k8s/secret.yaml" ]; then
+            kubectl apply -f generated_k8s/secret.yaml
+          fi
+          
+          # 3. Deployment and Service
+          kubectl apply -f generated_k8s/deployment.yaml
+          kubectl apply -f generated_k8s/service.yaml
+          
+          # 4. Ingress
+          kubectl apply -f generated_k8s/ingress.yaml
+          
+          # 5. HPA (if exists)
+          if [ -f "generated_k8s/hpa.yaml" ]; then
+            kubectl apply -f generated_k8s/hpa.yaml
+          fi
+          
+        elif [ -d "k8s" ]; then
+          echo "✅ Found k8s directory"
+          kubectl apply -f k8s/
+        else
+          echo "❌ No Kubernetes manifests found"
+          exit 1
+        fi
+    
+    - name: ⏳ Wait for Deployment
+      run: |
+        echo "⏳ Waiting for deployment to be ready..."
+        kubectl wait --for=condition=available --timeout=300s deployment/skyline-deployment -n ${{ github.event.inputs.namespace }}
+    
+    - name: 🔍 Verify Deployment
+      run: |
+        echo "🔍 Verifying deployment status..."
+        
+        # Check pods
+        kubectl get pods -n ${{ github.event.inputs.namespace }} -l app=skyline
+        
+        # Check services
+        kubectl get services -n ${{ github.event.inputs.namespace }}
+        
+        # Check ingress
+        kubectl get ingress -n ${{ github.event.inputs.namespace }}
+        
+        # Get application URL
+        INGRESS_URL=$(kubectl get ingress skyline-ingress -n ${{ github.event.inputs.namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "Pending...")
+        echo "🌐 Application URL: https://$INGRESS_URL"
+    
+    - name: 📊 Deployment Summary
+      run: |
+        echo "## 🎉 Application Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Deployed Resources" >> $GITHUB_STEP_SUMMARY
+        echo "- **Namespace**: ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployment**: skyline-deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: skyline-service" >> $GITHUB_STEP_SUMMARY
+        echo "- **Ingress**: skyline-ingress" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔍 Status Check" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        kubectl get all -n ${{ github.event.inputs.namespace }} >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🌐 Access Information" >> $GITHUB_STEP_SUMMARY
+        echo "- **Domain**: https://www.greenbespinglobal.store" >> $GITHUB_STEP_SUMMARY
+        echo "- **Health Check**: https://www.greenbespinglobal.store/health" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**🚀 Application is now live!**" >> $GITHUB_STEP_SUMMARY
+
+  # 배포 실패 시 롤백
+  rollback-on-failure:
+    if: failure()
+    runs-on: ubuntu-latest
+    needs: deploy-application
+    
+    steps:
+    - name: 🔄 Rollback Deployment
+      run: |
+        echo "🔄 Rolling back failed deployment..."
+        
+        # Configure kubectl
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ github.event.inputs.cluster_name }}
+        
+        # Rollback deployment
+        kubectl rollout undo deployment/skyline-deployment -n ${{ github.event.inputs.namespace }}
+        
+        echo "✅ Rollback completed"

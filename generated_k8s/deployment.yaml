@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skyline-deployment
+  namespace: skyline
+  labels:
+    app: skyline
+    version: v1
+    managed-by: amazon-q-ai
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: skyline
+  template:
+    metadata:
+      labels:
+        app: skyline
+        version: v1
+    spec:
+      containers:
+      - name: skyline
+        image: 646558765106.dkr.ecr.ap-northeast-2.amazonaws.com/skyline-dev:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            memory: 768Mi
+            cpu: 500m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        env:
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: skyline-db-secret
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: skyline-db-secret
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: skyline-db-secret
+              key: DB_NAME
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: skyline-db-secret
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: skyline-db-secret
+              key: DB_PASSWORD
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production" 
+        - name: SERVER_PORT
+          value: "8080" 
+        - name: APP_NAME
+          value: "skyline" 
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        imagePullPolicy: Always
+      restartPolicy: Always
+---

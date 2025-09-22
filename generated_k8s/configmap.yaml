@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skyline-config
+  namespace: skyline
+  labels:
+    app: skyline
+    managed-by: amazon-q-ai
+data:
+  application.properties: |
+    server.port=8080
+    spring.application.name=skyline
+    management.endpoints.web.exposure.include=health,info,metrics
+    management.endpoint.health.show-details=always
+    logging.level.com.example=skyline=INFO
+---
