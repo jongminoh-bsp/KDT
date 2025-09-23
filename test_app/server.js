@@ -80,3 +80,4 @@ console.log('Testing real Amazon Bedrock with credentials!');
 // Claude 3.5 Sonnet ✅  
 // Ready for real Amazon AI analysis!
 console.log('Claude models are now active - testing real Bedrock!');
+// Testing multiple Claude models - Tue Sep 23 11:20:29 KST 2025
