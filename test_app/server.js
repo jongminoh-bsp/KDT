@@ -66,3 +66,4 @@ app.listen(PORT, () => {
 // 🤖 Real Amazon Bedrock Test - Tue Sep 23 11:07:03 KST 2025
 // This should trigger Claude AI analysis!
 console.log('Testing real Amazon Bedrock integration');
+// Simple Bedrock test trigger - Tue Sep 23 11:08:02 KST 2025
