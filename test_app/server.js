@@ -92,3 +92,4 @@ console.log('Testing Bedrock in Seoul region!');
 // This should trigger the clean amazon-q-analysis.yml workflow
 console.log('Testing Amazon Q AI with fixed workflow!');
 // Simplified workflow test - Tue Sep 23 12:42:47 KST 2025
+// Minimal test trigger - Tue Sep 23 12:43:42 KST 2025
