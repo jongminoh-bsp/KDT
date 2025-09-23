@@ -69,3 +69,8 @@ console.log('Testing real Amazon Bedrock integration');
 // Simple Bedrock test trigger - Tue Sep 23 11:08:02 KST 2025
 // OIDC fix test - Tue Sep 23 11:11:13 KST 2025
 // Direct Bedrock test - Tue Sep 23 11:12:14 KST 2025
+
+// 🤖 REAL AMAZON BEDROCK TEST - Tue Sep 23 11:15:31 KST 2025
+// AWS credentials are now set in GitHub Secrets!
+// This should call actual Claude AI for code analysis
+console.log('Testing real Amazon Bedrock with credentials!');
