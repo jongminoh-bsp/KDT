@@ -62,3 +62,7 @@ app.listen(PORT, () => {
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 // Trigger Bedrock test
+
+// 🤖 Real Amazon Bedrock Test - Tue Sep 23 11:07:03 KST 2025
+// This should trigger Claude AI analysis!
+console.log('Testing real Amazon Bedrock integration');
