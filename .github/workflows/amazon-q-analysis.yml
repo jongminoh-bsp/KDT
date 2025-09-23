@@ -1,4 +1,4 @@
-name: 🤖 Real Amazon Q Analysis Pipeline
+name: 🤖 Amazon Q AI Analysis & Infrastructure Generation
 
 on:
   push:
@@ -6,14 +6,16 @@ on:
     paths: 
       - 'app/**'
       - 'skyline_system_demo/**'
+      - 'test_app/**'
       - '**/pom.xml'
       - '**/package.json'
+      - '**/requirements.txt'
 
 env:
-  AWS_REGION: us-east-1  # Bedrock 사용을 위해 us-east-1
+  AWS_DEFAULT_REGION: ap-northeast-2  # Seoul region
 
 jobs:
-  amazon-q-analysis:
+  ai-analysis:
     runs-on: ubuntu-latest
     
     permissions:
@@ -28,18 +30,10 @@ jobs:
     - name: 🐍 Setup Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.11'
     
     - name: 📦 Install Dependencies
-      run: |
-        pip install boto3
-    
-    - name: 🔑 Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-        role-session-name: GitHubActions-AmazonQ
+      run: pip install boto3>=1.34.0
     
     - name: 🔍 Detect Application
       id: detect
@@ -54,21 +48,28 @@ jobs:
           echo "✅ Found skyline_system_demo/ directory"
           echo "app_dir=skyline_system_demo" >> $GITHUB_OUTPUT
           echo "has_app=true" >> $GITHUB_OUTPUT
+        elif [ -d "test_app" ]; then
+          echo "✅ Found test_app/ directory"
+          echo "app_dir=test_app" >> $GITHUB_OUTPUT
+          echo "has_app=true" >> $GITHUB_OUTPUT
         else
           echo "❌ No application directory found"
           echo "has_app=false" >> $GITHUB_OUTPUT
         fi
     
-    - name: 🤖 Run Real Amazon Q Analysis
+    - name: 🤖 Run Amazon Q AI Analysis
       if: steps.detect.outputs.has_app == 'true'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         APP_DIR="${{ steps.detect.outputs.app_dir }}"
-        echo "🤖 Running Amazon Q analysis on: $APP_DIR"
+        echo "🤖 Running Amazon Q AI analysis on: $APP_DIR"
         
-        # 실제 Amazon Q 분석 실행
+        # Real Amazon Bedrock analysis (Seoul region)
         python3 automation/analyzer/amazon_q_analyzer.py "./$APP_DIR"
         
-        echo "✅ Amazon Q analysis completed"
+        echo "✅ Amazon Q AI analysis completed"
     
     - name: 🏗️ Generate Infrastructure with AI Results
       if: steps.detect.outputs.has_app == 'true'
@@ -76,11 +77,11 @@ jobs:
         APP_DIR="${{ steps.detect.outputs.app_dir }}"
         echo "🏗️ Generating infrastructure based on Amazon Q analysis..."
         
-        # config.py 업데이트
+        # Update config with full path
         FULL_PATH="$(pwd)/$APP_DIR"
         sed -i "s|APPLICATION_SOURCE_PATH = \".*\"|APPLICATION_SOURCE_PATH = \"$FULL_PATH\"|" automation/config.py
         
-        # Amazon Q 결과를 사용한 인프라 생성
+        # Generate infrastructure using AI results
         python3 -c "
 import sys, os, json
 sys.path.append('automation')
@@ -89,9 +90,9 @@ from generator.terraform_generator import TerraformGenerator
 from generator.k8s_generator import KubernetesGenerator
 import config
 
-print('🤖 Using Amazon Q analysis results...')
+print('🤖 Using Amazon Q AI analysis results...')
 
-# Amazon Q 분석 실행
+# Run Amazon Q analysis
 analyzer = AmazonQAnalyzer('$FULL_PATH')
 analysis_result = analyzer.analyze_with_amazon_q()
 
@@ -100,7 +101,7 @@ print(f'📊 Confidence: {analysis_result.get(\"ai_confidence\", 0)*100:.1f}%')
 print(f'🎯 Framework: {analysis_result[\"framework\"]}')
 print(f'💾 Memory: {analysis_result[\"resources\"][\"memory_limit\"]}')
 
-# Terraform 생성
+# Generate Terraform
 terraform_config = {
     'AWS_REGION': config.AWS_REGION,
     'PROJECT_NAME': config.PROJECT_NAME,
@@ -114,21 +115,21 @@ terraform_files = terraform_gen.generate_all('./generated_terraform')
 
 print(f'🏗️ Generated {len(terraform_files)} Terraform files')
 
-# 결과 저장
+# Save analysis results
 with open('amazon_q_analysis.json', 'w') as f:
     json.dump(analysis_result, f, indent=2)
 
-print('✅ Amazon Q powered infrastructure generation complete!')
+print('✅ AI-powered infrastructure generation complete!')
 "
     
-    - name: 📊 Show Amazon Q Results
+    - name: 📊 Show AI Analysis Results
       if: steps.detect.outputs.has_app == 'true'
       run: |
-        echo "📊 Amazon Q Analysis Results:"
+        echo "📊 Amazon Q AI Analysis Results:"
         echo "================================"
         
         if [ -f "amazon_q_analysis.json" ]; then
-          echo "🤖 AI Engine Used:"
+          echo "🤖 AI Engine:"
           cat amazon_q_analysis.json | jq -r '.ai_source // "unknown"'
           
           echo ""
@@ -148,10 +149,10 @@ print('✅ Amazon Q powered infrastructure generation complete!')
         
         echo ""
         echo "🚀 Next Steps:"
-        echo "1. Amazon Q has analyzed your application"
+        echo "1. Amazon Q AI has analyzed your application"
         echo "2. Infrastructure recommendations generated"
         echo "3. Terraform code created based on AI analysis"
-        echo "4. Ready for Phase 1 PR creation"
+        echo "4. Ready for infrastructure deployment"
     
     - name: 🔄 Create AI-Powered Infrastructure PR
       if: steps.detect.outputs.has_app == 'true'
@@ -160,26 +161,26 @@ print('✅ Amazon Q powered infrastructure generation complete!')
       run: |
         APP_DIR="${{ steps.detect.outputs.app_dir }}"
         
-        # AI 분석 결과 읽기
+        # Read AI analysis results
         AI_SOURCE=$(cat amazon_q_analysis.json | jq -r '.ai_source // "local-analysis"')
         CONFIDENCE=$(cat amazon_q_analysis.json | jq -r '.ai_confidence // 0.85')
         FRAMEWORK=$(cat amazon_q_analysis.json | jq -r '.framework // "unknown"')
         
-        # Git 설정
+        # Git configuration
         git config --global user.name "Amazon Q AI"
         git config --global user.email "amazonq@aws.amazon.com"
         
-        # AI 기반 브랜치 생성
+        # Create AI-powered branch
         BRANCH_NAME="ai-infra/amazonq-$(date +%Y%m%d_%H%M%S)"
         git checkout -b $BRANCH_NAME
         
-        # Terraform 파일 정리
+        # Organize Terraform files
         mkdir -p terraform
         if [ -d "generated_terraform" ]; then
           cp -r generated_terraform/* terraform/ 2>/dev/null || true
         fi
         
-        # 변경사항 커밋
+        # Commit changes
         git add terraform/ amazon_q_analysis.json automation/config.py 2>/dev/null || true
         git commit -m "🤖 Amazon Q AI Infrastructure Analysis
 
@@ -189,7 +190,7 @@ print('✅ Amazon Q powered infrastructure generation complete!')
 📁 Source: $APP_DIR
 
 🏗️ AI-Generated Infrastructure:
-- Analyzed by real Amazon Q/Bedrock
+- Analyzed by Amazon Bedrock Claude (Seoul)
 - Optimized resource recommendations
 - Production-ready Terraform code
 - Cost-optimized configuration
@@ -197,13 +198,13 @@ print('✅ Amazon Q powered infrastructure generation complete!')
 Generated by Amazon Q AI Engine
 Timestamp: $(date)" || echo "No changes to commit"
         
-        # 브랜치 푸시
+        # Push branch
         git push origin $BRANCH_NAME
         
-        # AI 기반 PR 생성
+        # Create AI-powered PR
         gh pr create \
           --title "🤖 Amazon Q AI: Infrastructure for $FRAMEWORK" \
-          --body "## 🤖 Real Amazon Q Analysis Results
+          --body "## 🤖 Real Amazon Q AI Analysis Results
 
 **AI Engine**: $AI_SOURCE  
 **Confidence Score**: $(echo \"$CONFIDENCE * 100\" | bc -l | cut -d. -f1)%  
@@ -211,7 +212,7 @@ Timestamp: $(date)" || echo "No changes to commit"
 **Analysis Target**: \`$APP_DIR\`  
 
 ### 🔍 Amazon Q Analysis
-This infrastructure was generated using **real Amazon Q AI** through Amazon Bedrock (Claude 3.5 Sonnet).
+This infrastructure was generated using **real Amazon Q AI** through Amazon Bedrock Claude in Seoul region (ap-northeast-2).
 
 ### 📊 AI Recommendations
 - **Resource Sizing**: Based on application complexity analysis
@@ -229,7 +230,7 @@ This infrastructure was generated using **real Amazon Q AI** through Amazon Bedr
 1. **Review** AI analysis results in \`amazon_q_analysis.json\`
 2. **Approve** this PR to deploy infrastructure
 3. **GitHub Actions** will deploy to AWS
-4. **Phase 2** will follow for application deployment
+4. **Application deployment** will follow
 
 ### 📋 AI Analysis Details
 \`\`\`json
@@ -246,21 +247,4 @@ $(cat amazon_q_analysis.json | jq '{
 **Powered by Amazon Q AI** 🤖✨" \
           --base dev \
           --head $BRANCH_NAME \
-          --label "amazon-q,ai-generated,phase-1"
-
-  # Amazon Q 분석 실패 시
-  fallback-analysis:
-    if: failure()
-    runs-on: ubuntu-latest
-    needs: amazon-q-analysis
-    
-    steps:
-    - name: 🔄 Fallback to Local Analysis
-      run: |
-        echo "⚠️ Amazon Q analysis failed, using local analysis"
-        echo "🔍 This could be due to:"
-        echo "  - AWS credentials not configured"
-        echo "  - Bedrock access not enabled"
-        echo "  - Network connectivity issues"
-        echo ""
-        echo "💡 Local analysis will be used as fallback"
+          --label "amazon-q,ai-generated,infrastructure"
