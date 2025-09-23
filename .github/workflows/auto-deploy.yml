@@ -25,39 +25,29 @@ jobs:
       run: |
         echo "🤖 Amazon Q analyzing Skyline app..."
         
-        python3 << 'EOF'
-import boto3
-import json
-
+        python3 -c "
+import boto3, json
 try:
-    print("Connecting to Amazon Bedrock (Seoul)...")
+    print('Connecting to Amazon Bedrock (Seoul)...')
     client = boto3.client('bedrock-runtime', region_name='ap-northeast-2')
-    
     response = client.invoke_model(
         modelId='anthropic.claude-3-haiku-20240307-v1:0',
         body=json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 200,
-            "messages": [{
-                "role": "user", 
-                "content": "Analyze Skyline airline reservation Spring Boot app. Recommend AWS resources: memory, CPU, replicas, database."
-            }]
+            'anthropic_version': 'bedrock-2023-05-31',
+            'max_tokens': 200,
+            'messages': [{'role': 'user', 'content': 'Analyze Skyline airline Spring Boot app. Recommend AWS resources.'}]
         })
     )
-    
     result = json.loads(response['body'].read())
-    ai_response = result['content'][0]['text']
-    
-    print("🎉 Amazon Q AI Analysis Result:")
-    print("=" * 50)
-    print(ai_response)
-    print("=" * 50)
-    print("✅ AI analysis completed successfully!")
-    
+    print('🎉 Amazon Q AI Analysis:')
+    print('=' * 50)
+    print(result['content'][0]['text'])
+    print('=' * 50)
+    print('✅ AI analysis completed!')
 except Exception as e:
-    print(f"❌ AI analysis failed: {e}")
-    print("🔄 Proceeding with default configuration")
-EOF
+    print(f'❌ AI analysis failed: {e}')
+    print('🔄 Using default configuration')
+"
 
   deploy-infrastructure:
     needs: ai-analysis
@@ -69,14 +59,10 @@ EOF
     - name: Deploy Infrastructure
       run: |
         echo "🏗️ Deploying AWS infrastructure based on AI analysis..."
-        echo ""
-        echo "Infrastructure components:"
         echo "- EKS cluster (3 nodes)"
         echo "- RDS MySQL database"
         echo "- Application Load Balancer"
         echo "- ECR repository"
-        echo "- Security groups"
-        echo ""
         echo "✅ Infrastructure deployment completed!"
 
   deploy-application:
@@ -89,18 +75,12 @@ EOF
     - name: Deploy Skyline Application
       run: |
         echo "🚀 Deploying Skyline airline reservation system..."
-        echo ""
-        echo "Deployment steps:"
         echo "1. Building Spring Boot application"
         echo "2. Creating Docker image"
         echo "3. Pushing to ECR"
         echo "4. Deploying to EKS cluster"
         echo "5. Configuring database connection"
-        echo "6. Setting up load balancer"
-        echo ""
         echo "✅ Skyline application deployed successfully!"
         echo ""
         echo "🎉 COMPLETE PIPELINE FINISHED!"
         echo "App Push → AI Analysis → Infrastructure → Application ✅"
-        echo ""
-        echo "🌐 Application URL: https://skyline.your-domain.com"
