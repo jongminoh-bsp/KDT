@@ -81,3 +81,8 @@ console.log('Testing real Amazon Bedrock with credentials!');
 // Ready for real Amazon AI analysis!
 console.log('Claude models are now active - testing real Bedrock!');
 // Testing multiple Claude models - Tue Sep 23 11:20:29 KST 2025
+
+// 🇰🇷 SEOUL REGION BEDROCK TEST - Tue Sep 23 12:25:36 KST 2025
+// Fixed region: us-east-1 → ap-northeast-2
+// This should work with Seoul Claude models!
+console.log('Testing Bedrock in Seoul region!');
