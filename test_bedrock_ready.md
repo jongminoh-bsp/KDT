@@ -30,3 +30,11 @@ GitHub Secret 설정 후 이 파일을 수정하면 Bedrock 워크플로우가 �
 4. 95% 신뢰도로 결과 제공
 
 **Ready for real AI analysis!** 🚀
+
+## 🧪 Testing Real Amazon Bedrock
+
+**Test Time**: Tue Sep 23 11:05:13 KST 2025
+**Expected**: Real Claude AI analysis of Node.js app
+**Models Available**: Claude 3.5 Sonnet, Haiku, Opus
+
+This modification should trigger the working-bedrock.yml workflow!
