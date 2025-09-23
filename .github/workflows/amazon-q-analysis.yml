@@ -82,7 +82,7 @@ jobs:
         sed -i "s|APPLICATION_SOURCE_PATH = \".*\"|APPLICATION_SOURCE_PATH = \"$FULL_PATH\"|" automation/config.py
         
         # Generate infrastructure using AI results
-        python3 -c "
+        python3 << 'EOF'
 import sys, os, json
 sys.path.append('automation')
 from analyzer.amazon_q_analyzer import AmazonQAnalyzer
@@ -93,13 +93,13 @@ import config
 print('🤖 Using Amazon Q AI analysis results...')
 
 # Run Amazon Q analysis
-analyzer = AmazonQAnalyzer('$FULL_PATH')
+analyzer = AmazonQAnalyzer(os.environ['FULL_PATH'])
 analysis_result = analyzer.analyze_with_amazon_q()
 
-print(f'✅ AI Engine: {analysis_result.get(\"ai_source\", \"unknown\")}')
-print(f'📊 Confidence: {analysis_result.get(\"ai_confidence\", 0)*100:.1f}%')
-print(f'🎯 Framework: {analysis_result[\"framework\"]}')
-print(f'💾 Memory: {analysis_result[\"resources\"][\"memory_limit\"]}')
+print(f'✅ AI Engine: {analysis_result.get("ai_source", "unknown")}')
+print(f'📊 Confidence: {analysis_result.get("ai_confidence", 0)*100:.1f}%')
+print(f'🎯 Framework: {analysis_result["framework"]}')
+print(f'💾 Memory: {analysis_result["resources"]["memory_limit"]}')
 
 # Generate Terraform
 terraform_config = {
@@ -120,7 +120,9 @@ with open('amazon_q_analysis.json', 'w') as f:
     json.dump(analysis_result, f, indent=2)
 
 print('✅ AI-powered infrastructure generation complete!')
-"
+EOF
+      env:
+        FULL_PATH: ${{ github.workspace }}/${{ steps.detect.outputs.app_dir }}
     
     - name: 📊 Show AI Analysis Results
       if: steps.detect.outputs.has_app == 'true'
@@ -185,7 +187,7 @@ print('✅ AI-powered infrastructure generation complete!')
         git commit -m "🤖 Amazon Q AI Infrastructure Analysis
 
 🔍 AI Engine: $AI_SOURCE
-📊 Confidence: $(echo \"$CONFIDENCE * 100\" | bc -l | cut -d. -f1)%
+📊 Confidence: $(echo "$CONFIDENCE * 100" | bc -l | cut -d. -f1)%
 🎯 Framework: $FRAMEWORK
 📁 Source: $APP_DIR
 
@@ -207,7 +209,7 @@ Timestamp: $(date)" || echo "No changes to commit"
           --body "## 🤖 Real Amazon Q AI Analysis Results
 
 **AI Engine**: $AI_SOURCE  
-**Confidence Score**: $(echo \"$CONFIDENCE * 100\" | bc -l | cut -d. -f1)%  
+**Confidence Score**: $(echo "$CONFIDENCE * 100" | bc -l | cut -d. -f1)%  
 **Framework Detected**: $FRAMEWORK  
 **Analysis Target**: \`$APP_DIR\`  
 
