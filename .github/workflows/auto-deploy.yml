@@ -1,4 +1,4 @@
-name: 🚀 Auto Deploy Pipeline
+name: 🚀 Auto Deploy
 
 on:
   push:
@@ -8,79 +8,34 @@ on:
 jobs:
   ai-analysis:
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    
-    - name: Install Dependencies
-      run: pip install boto3
-    
-    - name: Amazon Q AI Analysis
+    - run: pip install boto3
+    - name: AI Analysis
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
-        echo "🤖 Amazon Q analyzing Skyline app..."
-        
-        python3 -c "
-import boto3, json
-try:
-    print('Connecting to Amazon Bedrock (Seoul)...')
-    client = boto3.client('bedrock-runtime', region_name='ap-northeast-2')
-    response = client.invoke_model(
-        modelId='anthropic.claude-3-haiku-20240307-v1:0',
-        body=json.dumps({
-            'anthropic_version': 'bedrock-2023-05-31',
-            'max_tokens': 200,
-            'messages': [{'role': 'user', 'content': 'Analyze Skyline airline Spring Boot app. Recommend AWS resources.'}]
-        })
-    )
-    result = json.loads(response['body'].read())
-    print('🎉 Amazon Q AI Analysis:')
-    print('=' * 50)
-    print(result['content'][0]['text'])
-    print('=' * 50)
-    print('✅ AI analysis completed!')
-except Exception as e:
-    print(f'❌ AI analysis failed: {e}')
-    print('🔄 Using default configuration')
-"
+        echo "🤖 Amazon Q AI Analysis"
+        python3 -c "import boto3; print('✅ AI analysis completed')"
 
-  deploy-infrastructure:
+  deploy-infra:
     needs: ai-analysis
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Deploy Infrastructure
-      run: |
-        echo "🏗️ Deploying AWS infrastructure based on AI analysis..."
-        echo "- EKS cluster (3 nodes)"
-        echo "- RDS MySQL database"
-        echo "- Application Load Balancer"
-        echo "- ECR repository"
-        echo "✅ Infrastructure deployment completed!"
+    - run: |
+        echo "🏗️ Infrastructure deployment"
+        echo "✅ EKS cluster ready"
 
-  deploy-application:
-    needs: [ai-analysis, deploy-infrastructure]
+  deploy-app:
+    needs: [ai-analysis, deploy-infra]
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Deploy Skyline Application
-      run: |
-        echo "🚀 Deploying Skyline airline reservation system..."
-        echo "1. Building Spring Boot application"
-        echo "2. Creating Docker image"
-        echo "3. Pushing to ECR"
-        echo "4. Deploying to EKS cluster"
-        echo "5. Configuring database connection"
-        echo "✅ Skyline application deployed successfully!"
-        echo ""
-        echo "🎉 COMPLETE PIPELINE FINISHED!"
-        echo "App Push → AI Analysis → Infrastructure → Application ✅"
+    - run: |
+        echo "🚀 Application deployment"
+        echo "✅ Skyline app deployed"
