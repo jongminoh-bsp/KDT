@@ -86,3 +86,8 @@ console.log('Claude models are now active - testing real Bedrock!');
 // Fixed region: us-east-1 → ap-northeast-2
 // This should work with Seoul Claude models!
 console.log('Testing Bedrock in Seoul region!');
+
+// 🤖 AMAZON Q AI WORKFLOW TEST - Tue Sep 23 12:41:22 KST 2025
+// Testing fixed YAML syntax and real Bedrock integration
+// This should trigger the clean amazon-q-analysis.yml workflow
+console.log('Testing Amazon Q AI with fixed workflow!');
