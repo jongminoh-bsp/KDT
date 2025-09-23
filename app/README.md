@@ -134,3 +134,6 @@ skyline_system_demo/
 - 자동 Terraform 생성
 
 **Powered by Amazon Q AI** 🤖✨
+
+## 🔧 Workflow Fixed - Tue Sep 23 12:48:19 KST 2025
+Amazon Q AI workflow updated for Skyline analysis!
