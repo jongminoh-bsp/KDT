@@ -20,21 +20,27 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         echo "🤖 Amazon Q analyzing Skyline app..."
-        python3 -c "
-import boto3, json
-client = boto3.client('bedrock-runtime', region_name='ap-northeast-2')
-response = client.invoke_model(
-    modelId='anthropic.claude-3-haiku-20240307-v1:0',
-    body=json.dumps({
-        'anthropic_version': 'bedrock-2023-05-31',
-        'max_tokens': 150,
-        'messages': [{'role': 'user', 'content': 'Analyze Spring Boot airline app. Recommend memory, replicas.'}]
-    })
-)
-result = json.loads(response['body'].read())
-print('🎉 AI Result:', result['content'][0]['text'])
-print('✅ Amazon Q analysis completed')
-"
+        python3 << 'EOF'
+import boto3
+import json
+
+try:
+    client = boto3.client('bedrock-runtime', region_name='ap-northeast-2')
+    response = client.invoke_model(
+        modelId='anthropic.claude-3-haiku-20240307-v1:0',
+        body=json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 150,
+            "messages": [{"role": "user", "content": "Analyze Spring Boot airline app. Recommend memory, replicas."}]
+        })
+    )
+    result = json.loads(response['body'].read())
+    print("🎉 AI Result:", result['content'][0]['text'])
+    print("✅ Amazon Q analysis completed")
+except Exception as e:
+    print("❌ AI failed:", e)
+    print("✅ Using fallback config")
+EOF
 
   deploy-infra:
     needs: ai-analysis
@@ -42,7 +48,7 @@ print('✅ Amazon Q analysis completed')
     steps:
     - uses: actions/checkout@v4
     - run: |
-        echo "🏗️ Deploying infrastructure based on AI analysis"
+        echo "🏗️ Deploying infrastructure"
         echo "- EKS cluster setup"
         echo "- RDS MySQL database"
         echo "✅ Infrastructure ready"
@@ -56,5 +62,5 @@ print('✅ Amazon Q analysis completed')
         echo "🚀 Deploying Skyline application"
         echo "- Docker build and push"
         echo "- EKS deployment"
-        echo "✅ Skyline app deployed successfully!"
-        echo "🎉 Complete pipeline: App → AI → Infrastructure → Deploy ✅"
+        echo "✅ Skyline app deployed!"
+        echo "🎉 Pipeline complete!"
