@@ -11,8 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Python
-      uses: actions/setup-python@v4
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
     
@@ -26,14 +25,13 @@ jobs:
       run: |
         echo "🤖 Amazon Q AI Analysis starting..."
         
-        # Simple AI test first
         python3 -c "
 import boto3
 try:
     client = boto3.client('bedrock-runtime', region_name='ap-northeast-2')
     print('✅ Amazon Bedrock connection successful')
 except Exception as e:
-    print(f'❌ Connection failed: {e}')
+    print('❌ Connection failed:', e)
     print('🔄 Continuing with default config')
 "
         
