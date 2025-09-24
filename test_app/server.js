@@ -61,3 +61,35 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+// Trigger Bedrock test
+
+// 🤖 Real Amazon Bedrock Test - Tue Sep 23 11:07:03 KST 2025
+// This should trigger Claude AI analysis!
+console.log('Testing real Amazon Bedrock integration');
+// Simple Bedrock test trigger - Tue Sep 23 11:08:02 KST 2025
+// OIDC fix test - Tue Sep 23 11:11:13 KST 2025
+// Direct Bedrock test - Tue Sep 23 11:12:14 KST 2025
+
+// 🤖 REAL AMAZON BEDROCK TEST - Tue Sep 23 11:15:31 KST 2025
+// AWS credentials are now set in GitHub Secrets!
+// This should call actual Claude AI for code analysis
+console.log('Testing real Amazon Bedrock with credentials!');
+
+// 🎉 CLAUDE MODELS ACTIVATED! - Tue Sep 23 11:19:19 KST 2025
+// Claude 3 Haiku ✅
+// Claude 3.5 Sonnet ✅  
+// Ready for real Amazon AI analysis!
+console.log('Claude models are now active - testing real Bedrock!');
+// Testing multiple Claude models - Tue Sep 23 11:20:29 KST 2025
+
+// 🇰🇷 SEOUL REGION BEDROCK TEST - Tue Sep 23 12:25:36 KST 2025
+// Fixed region: us-east-1 → ap-northeast-2
+// This should work with Seoul Claude models!
+console.log('Testing Bedrock in Seoul region!');
+
+// 🤖 AMAZON Q AI WORKFLOW TEST - Tue Sep 23 12:41:22 KST 2025
+// Testing fixed YAML syntax and real Bedrock integration
+// This should trigger the clean amazon-q-analysis.yml workflow
+console.log('Testing Amazon Q AI with fixed workflow!');
+// Simplified workflow test - Tue Sep 23 12:42:47 KST 2025
+// Minimal test trigger - Tue Sep 23 12:43:42 KST 2025
