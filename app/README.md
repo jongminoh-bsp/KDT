@@ -1,5 +1,4 @@
 # Skyline 항공예약시스템
-# 250924 09:10
 
 EKS 인턴십 교육용 항공예약시스템 데모 애플리케이션입니다.
 
@@ -8,157 +7,84 @@ EKS 인턴십 교육용 항공예약시스템 데모 애플리케이션입니다
 Skyline은 AWS EKS 환경에서의 컨테이너 오케스트레이션 학습을 위한 샘플 항공예약 시스템입니다. 
 MySQL RDS를 데이터베이스로 사용하며, 실제 운영환경과 유사한 구성으로 설계되었습니다.
 
+## 🤖 Amazon Q AI Integration - LIVE TEST
+
+**Updated**: 2025-09-24 09:36 - 실제 Amazon Q AI Lambda 함수 테스트!
+
+### 🚀 AI-Powered DevOps Pipeline
+- **Amazon Q AI**: 실제 Bedrock Claude 분석 (Seoul region)
+- **Lambda Function**: skyline-q-agent 배포 완료
+- **Auto Infrastructure**: AI 추천 기반 Terraform 생성
+- **Auto Deployment**: K8s 배포 설정 자동 생성
+- **GitHub Integration**: PR 자동 생성
+
+### 📊 AI 분석 결과 (최신)
+- **Memory**: 2Gi (AI 추천)
+- **CPU**: 1000m (AI 추천)
+- **Replicas**: 3 (고가용성)
+- **Database**: MySQL (항공 시스템 최적화)
+- **Instance Type**: t3.medium
+- **AI Confidence**: 95%
+
 ## 🚀 빠른 시작
 
-### Docker로 실행
-```bash
-# 이미지 빌드
-docker build -t skyline:latest .
+### 전제 조건
+- Java 17 이상
+- Maven 3.6 이상
+- Docker
+- kubectl
+- AWS CLI
 
-# 환경변수 설정 후 실행
-docker run -p 8080:8080 \
-  -e DB_HOST=your-rds-endpoint \
-  -e DB_USER=admin \
-  -e DB_PASSWORD=your-password \
-  skyline:latest
+### 로컬 실행
+```bash
+mvn spring-boot:run
 ```
 
-### Kubernetes 배포
+### Docker 실행
 ```bash
-# Secret 생성
-kubectl create secret generic skyline-db-secret \
-  --from-literal=DB_HOST=your-rds-endpoint \
-  --from-literal=DB_USER=admin \
-  --from-literal=DB_PASSWORD=your-password
-
-# 애플리케이션 배포
-kubectl apply -f k8s-examples/basic/
+docker build -t skyline-app .
+docker run -p 8080:8080 skyline-app
 ```
 
 ## 🏗️ 아키텍처
 
-- **Frontend**: React (포트 3000)
-- **Backend**: Spring Boot (포트 8080)
-- **Database**: MySQL RDS
-- **Container**: Docker 멀티스테이지 빌드
+- **Backend**: Spring Boot 3.x
+- **Database**: MySQL 8.0
+- **Container**: Docker
+- **Orchestration**: Kubernetes (EKS)
+- **AI Analysis**: Amazon Q (Bedrock Claude)
+- **Automation**: AWS Lambda + GitHub Actions
 
-## 🛠️ API 엔드포인트
+## 🔧 개발 환경
 
-### 항공편 관리
-- `GET /api/flights` - 항공편 목록 조회
-- `GET /api/flights/{id}` - 특정 항공편 조회
-- `GET /api/flights/search?from={departure}&to={arrival}&date={date}` - 항공편 검색
+### API 엔드포인트
+- `GET /` - 메인 페이지
+- `GET /health` - 헬스 체크
+- `GET /api/flights` - 항공편 조회
+- `POST /api/bookings` - 예약 생성
 
-### 예약 관리
-- `POST /api/reservations` - 예약 생성
-- `GET /api/reservations/{id}` - 예약 조회
-- `PUT /api/reservations/{id}` - 예약 수정
-- `DELETE /api/reservations/{id}` - 예약 취소
+### 환경 변수
+- `DB_HOST`: 데이터베이스 호스트
+- `DB_PORT`: 데이터베이스 포트 (기본값: 3306)
+- `DB_NAME`: 데이터베이스 이름
+- `DB_USER`: 데이터베이스 사용자
+- `DB_PASSWORD`: 데이터베이스 비밀번호
 
-### 시스템 모니터링
-- `GET /health` - 헬스체크 (DB 연결 상태 포함)
-- `GET /ready` - 레디니스 체크
-- `GET /metrics` - Prometheus 메트릭
-- `GET /stress/cpu` - CPU 부하 테스트용
-- `GET /stress/memory` - 메모리 부하 테스트용
-
-## 📊 데이터베이스 스키마
-
-주요 테이블:
-- `airports` - 공항 정보
-- `flights` - 항공편 정보  
-- `reservations` - 예약 정보
-
-자세한 스키마는 `sql/schema.sql`을 참조하세요.
-
-## 🎯 인턴십 실습 시나리오
-
-### 초급 과제
-- [ ] 기본 Pod 배포 및 Service 노출
-- [ ] RDS 연결 및 API 테스트
-- [ ] ConfigMap으로 설정 외부화
-
-### 중급 과제  
-- [ ] Ingress Controller 설정
-- [ ] HPA(Horizontal Pod Autoscaler) 구성
-- [ ] 모니터링 대시보드 구축
-
-### 고급 과제
-- [ ] Helm Chart 작성
-- [ ] CI/CD 파이프라인 구축
-- [ ] Service Mesh 적용
-- [ ] Blue-Green 배포 구현
-
-## 🔧 환경변수
-
-| 변수명 | 기본값 | 설명 |
-|--------|--------|------|
-| `DB_HOST` | localhost | MySQL 서버 주소 |
-| `DB_PORT` | 3306 | MySQL 포트 |
-| `DB_NAME` | skyline | 데이터베이스 이름 |
-| `DB_USER` | skyline_user | 데이터베이스 사용자 |
-| `DB_PASSWORD` | changeme | 데이터베이스 비밀번호 |
-| `DB_CONNECTION_POOL_SIZE` | 10 | 커넥션 풀 크기 |
-
-## 📁 프로젝트 구조
+## 🚀 AI-Powered 배포 워크플로우
 
 ```
-skyline_system_demo/
-├── src/                        # 애플리케이션 소스코드
-├── frontend/                   # React 프론트엔드
-├── sql/                        # DB 스키마 및 시드 데이터
-├── k8s-examples/              # Kubernetes 예시 매니페스트
-├── scripts/                   # 유틸리티 스크립트
-├── docs/                      # 문서
-├── Dockerfile                 # 멀티스테이지 Docker 빌드
-└── docker-compose.yml         # 로컬 개발용
+App 코드 수정 → GitHub Push → Lambda 트리거 → Amazon Q AI 분석 → 인프라 생성 → 자동 배포
 ```
 
-## 🚨 문제해결
-
-일반적인 문제들과 해결방법은 [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)를 참조하세요.
-
-## 📝 라이선스
-
-이 프로젝트는 교육 목적으로만 사용됩니다.
-
----
-
-🎓 **인턴십 교육생 여러분**, 자유롭게 실험하고 창의적으로 구성해보세요!
-
-## 🤖 Amazon Q AI Integration - Tue Sep 23 12:46:33 KST 2025
-
-**Updated**: 2025-09-23 - 이제 실제 Amazon Q AI가 이 애플리케이션을 분석합니다!
-- Amazon Bedrock Claude AI 분석  
-- Seoul region (ap-northeast-2) 지원
-- AI 기반 인프라 최적화
-- 자동 Terraform 생성
+1. **코드 푸시**: app/ 디렉터리 수정
+2. **AI 분석**: Amazon Q가 Spring Boot 앱 분석
+3. **인프라 생성**: AI 추천 기반 Terraform 코드 생성
+4. **배포 설정**: K8s 배포 YAML 자동 생성
+5. **PR 생성**: 생성된 파일들로 자동 PR 생성
+6. **리뷰 & 배포**: PR 머지 후 자동 배포
 
 **Powered by Amazon Q AI** 🤖✨
 
-## 🔧 Workflow Fixed - Tue Sep 23 12:48:19 KST 2025
-Amazon Q AI workflow updated for Skyline analysis!
+---
 
-## ✈️ Skyline AI Workflow Ready - Tue Sep 23 12:49:26 KST 2025
-Testing dedicated Skyline analysis workflow!
-
-## 🤖 Simple AI Test - Tue Sep 23 12:50:37 KST 2025
-
-## 🚀 Auto-Deploy Pipeline Test - Tue Sep 23 12:53:20 KST 2025
-Testing the complete auto-deploy pipeline!
-
-## 🔧 Fixed Pipeline - Tue Sep 23 12:54:33 KST 2025
-Auto-deploy pipeline syntax fixed and ready!
-
-## 🎯 Final Pipeline Test - Tue Sep 23 12:55:52 KST 2025
-Complete auto-deploy pipeline ready for testing!
-
-## ✅ YAML Fixed - Tue Sep 23 12:58:03 KST 2025
-Auto-deploy pipeline syntax error fixed!
-Test - Tue Sep 23 13:03:57 KST 2025
-Fixed test - Wed Sep 24 08:51:20 KST 2025
-Test trigger - Wed Sep 24 09:09:09 KST 2025
-Deploy with AI test - Wed Sep 24 09:14:56 KST 2025
-Fixed test - Wed Sep 24 09:16:02 KST 2025
-Real Amazon Q test - Wed Sep 24 09:17:53 KST 2025
-Lambda deployed - Wed Sep 24 09:35:14 KST 2025
+**이 README 수정으로 전체 AI 파이프라인이 트리거됩니다!** 🚀
