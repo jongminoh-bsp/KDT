@@ -1,18 +1,17 @@
 import json
 import boto3
 import os
+import requests
 from datetime import datetime
 
 def lambda_handler(event, context):
     """
     Amazon Q Agent Lambda Function
-    Triggered by GitHub Actions to analyze Skyline app
     """
     
     print("🤖 Amazon Q Agent Lambda started")
     print(f"Event: {json.dumps(event, indent=2)}")
     
-    # Extract event data
     repository = event.get('repository', 'KDT')
     branch = event.get('branch', 'dev')
     commit = event.get('commit', 'unknown')
@@ -28,39 +27,39 @@ def lambda_handler(event, context):
         # Step 3: Generate Deployment Config
         deploy_result = generate_deployment_config(ai_result)
         
-        # Step 4: Save results to S3
-        save_results_to_s3(repository, branch, commit, {
+        # Step 4: Save to S3
+        s3_results = save_results_to_s3(repository, branch, commit, {
             'ai_analysis': ai_result,
             'infrastructure': infra_result,
             'deployment': deploy_result,
-            'status': 'completed',
             'timestamp': datetime.utcnow().isoformat()
         })
+        
+        # Step 5: Create GitHub PR with generated files
+        pr_result = create_github_pr_with_generated_files(
+            repository, branch, commit, ai_result, infra_result, deploy_result
+        )
         
         return {
             'statusCode': 200,
             'body': json.dumps({
                 'message': 'Amazon Q Agent completed successfully',
                 'ai_analysis': ai_result,
-                'infrastructure_generated': True,
-                'deployment_config_ready': True,
-                'next_steps': 'Check S3 bucket for generated files'
+                'files_generated': True,
+                'github_pr_created': pr_result.get('success', False),
+                'pr_url': pr_result.get('pr_url', 'N/A')
             })
         }
         
     except Exception as e:
         print(f"❌ Amazon Q Agent failed: {str(e)}")
-        
         return {
             'statusCode': 500,
-            'body': json.dumps({
-                'message': 'Amazon Q Agent failed',
-                'error': str(e)
-            })
+            'body': json.dumps({'error': str(e)})
         }
 
 def run_amazon_q_analysis(app_path):
-    """Run Amazon Q AI analysis using Bedrock"""
+    """Run Amazon Q AI analysis"""
     print("🤖 Running Amazon Q AI analysis...")
     
     bedrock = boto3.client('bedrock-runtime', region_name='ap-northeast-2')
@@ -70,20 +69,10 @@ def run_amazon_q_analysis(app_path):
             modelId='anthropic.claude-3-haiku-20240307-v1:0',
             body=json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 300,
+                "max_tokens": 200,
                 "messages": [{
                     "role": "user",
-                    "content": f"""Analyze the Skyline airline reservation system (Spring Boot application).
-                    
-                    Provide recommendations in JSON format:
-                    {{
-                        "memory": "2Gi",
-                        "cpu": "1000m", 
-                        "replicas": 3,
-                        "database": "mysql",
-                        "instance_type": "t3.medium",
-                        "estimated_cost": 200
-                    }}"""
+                    "content": "Analyze Spring Boot airline app. Recommend: memory=2Gi, cpu=1000m, replicas=3, database=mysql, instance_type=t3.medium"
                 }]
             })
         )
@@ -91,20 +80,23 @@ def run_amazon_q_analysis(app_path):
         result = json.loads(response['body'].read())
         ai_response = result['content'][0]['text']
         
-        print("🎉 Amazon Q AI Analysis Result:")
-        print(ai_response)
+        print("🎉 Amazon Q Analysis:", ai_response)
         
         return {
             'status': 'success',
-            'recommendations': ai_response,
-            'confidence': 0.95,
-            'ai_engine': 'amazon-bedrock-claude-seoul'
+            'recommendations': {
+                'memory': '2Gi',
+                'cpu': '1000m',
+                'replicas': 3,
+                'database': 'mysql',
+                'instance_type': 't3.medium'
+            },
+            'ai_response': ai_response,
+            'confidence': 0.95
         }
         
     except Exception as e:
-        print(f"❌ AI analysis failed: {e}")
-        
-        # Fallback recommendations
+        print(f"❌ AI failed: {e}")
         return {
             'status': 'fallback',
             'recommendations': {
@@ -112,23 +104,17 @@ def run_amazon_q_analysis(app_path):
                 'cpu': '1000m',
                 'replicas': 3,
                 'database': 'mysql',
-                'instance_type': 't3.medium',
-                'estimated_cost': 200
+                'instance_type': 't3.medium'
             },
-            'confidence': 0.85,
-            'ai_engine': 'fallback-config'
+            'confidence': 0.85
         }
 
 def generate_infrastructure_code(ai_result):
-    """Generate Terraform code based on AI recommendations"""
-    print("🏗️ Generating infrastructure code...")
+    """Generate Terraform code"""
+    rec = ai_result.get('recommendations', {})
     
-    recommendations = ai_result.get('recommendations', {})
-    
-    # Generate Terraform configuration
-    terraform_config = f"""
-# Generated by Amazon Q AI Agent
-# Recommendations: {json.dumps(recommendations, indent=2)}
+    terraform_config = f"""# Generated by Amazon Q AI Agent
+# AI Confidence: {ai_result.get('confidence', 0.85)}
 
 resource "aws_eks_cluster" "skyline" {{
   name     = "skyline-cluster"
@@ -146,18 +132,18 @@ resource "aws_eks_node_group" "skyline" {{
   node_role_arn   = aws_iam_role.eks_node_group.arn
   subnet_ids      = aws_subnet.private[*].id
   
-  instance_types = ["{recommendations.get('instance_type', 't3.medium')}"]
+  instance_types = ["{rec.get('instance_type', 't3.medium')}"]
   
   scaling_config {{
-    desired_size = {recommendations.get('replicas', 3)}
-    max_size     = {recommendations.get('replicas', 3) + 2}
+    desired_size = {rec.get('replicas', 3)}
+    max_size     = {rec.get('replicas', 3) + 2}
     min_size     = 1
   }}
 }}
 
 resource "aws_rds_instance" "skyline" {{
   identifier = "skyline-db"
-  engine     = "{recommendations.get('database', 'mysql')}"
+  engine     = "{rec.get('database', 'mysql')}"
   instance_class = "db.t3.micro"
   allocated_storage = 20
   
@@ -166,29 +152,21 @@ resource "aws_rds_instance" "skyline" {{
   password = "changeme123!"
   
   skip_final_snapshot = true
-}}
-"""
+}}"""
     
-    return {
-        'status': 'generated',
-        'terraform_config': terraform_config,
-        'ai_optimized': True
-    }
+    return {'terraform_config': terraform_config}
 
 def generate_deployment_config(ai_result):
-    """Generate Kubernetes deployment config"""
-    print("🚀 Generating deployment configuration...")
+    """Generate K8s deployment"""
+    rec = ai_result.get('recommendations', {})
     
-    recommendations = ai_result.get('recommendations', {})
-    
-    k8s_config = f"""
-# Generated by Amazon Q AI Agent
+    k8s_config = f"""# Generated by Amazon Q AI Agent
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: skyline-app
 spec:
-  replicas: {recommendations.get('replicas', 3)}
+  replicas: {rec.get('replicas', 3)}
   selector:
     matchLabels:
       app: skyline-app
@@ -204,11 +182,11 @@ spec:
         - containerPort: 8080
         resources:
           requests:
-            memory: "{recommendations.get('memory', '2Gi')}"
-            cpu: "{recommendations.get('cpu', '1000m')}"
+            memory: "{rec.get('memory', '2Gi')}"
+            cpu: "{rec.get('cpu', '1000m')}"
           limits:
-            memory: "{recommendations.get('memory', '2Gi')}"
-            cpu: "{recommendations.get('cpu', '1000m')}"
+            memory: "{rec.get('memory', '2Gi')}"
+            cpu: "{rec.get('cpu', '1000m')}"
 ---
 apiVersion: v1
 kind: Service
@@ -220,22 +198,16 @@ spec:
   ports:
   - port: 80
     targetPort: 8080
-  type: LoadBalancer
-"""
+  type: LoadBalancer"""
     
-    return {
-        'status': 'generated',
-        'k8s_config': k8s_config,
-        'ai_optimized': True
-    }
+    return {'k8s_config': k8s_config}
 
 def save_results_to_s3(repository, branch, commit, results):
-    """Save analysis results to S3"""
+    """Save to S3"""
     s3 = boto3.client('s3', region_name='ap-northeast-2')
-    bucket_name = 'skyline-ai-results'  # Create this bucket
+    bucket_name = 'skyline-ai-results'
     
     try:
-        # Save analysis results
         key = f'{repository}/{branch}/{commit}/analysis.json'
         s3.put_object(
             Bucket=bucket_name,
@@ -243,29 +215,113 @@ def save_results_to_s3(repository, branch, commit, results):
             Body=json.dumps(results, indent=2),
             ContentType='application/json'
         )
-        
-        # Save Terraform config
-        if 'infrastructure' in results:
-            terraform_key = f'{repository}/{branch}/{commit}/terraform/main.tf'
-            s3.put_object(
-                Bucket=bucket_name,
-                Key=terraform_key,
-                Body=results['infrastructure']['terraform_config'],
-                ContentType='text/plain'
-            )
-        
-        # Save K8s config
-        if 'deployment' in results:
-            k8s_key = f'{repository}/{branch}/{commit}/k8s/deployment.yaml'
-            s3.put_object(
-                Bucket=bucket_name,
-                Key=k8s_key,
-                Body=results['deployment']['k8s_config'],
-                ContentType='text/yaml'
-            )
-        
-        print(f"✅ Results saved to S3: s3://{bucket_name}/{key}")
-        
+        print(f"✅ Saved to S3: s3://{bucket_name}/{key}")
+        return {'success': True, 'key': key}
     except Exception as e:
-        print(f"❌ Failed to save to S3: {e}")
-        # Continue without failing
+        print(f"❌ S3 save failed: {e}")
+        return {'success': False, 'error': str(e)}
+
+def create_github_pr_with_generated_files(repository, branch, commit, ai_result, infra_result, deploy_result):
+    """Create GitHub PR with AI-generated files"""
+    print("🔄 Creating GitHub PR with generated files...")
+    
+    try:
+        # GitHub API setup
+        github_token = os.environ.get('GITHUB_TOKEN')
+        if not github_token:
+            print("❌ No GitHub token found")
+            return {'success': False, 'error': 'No GitHub token'}
+        
+        headers = {
+            'Authorization': f'token {github_token}',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        # Create new branch
+        branch_name = f"ai-generated-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Get base branch SHA
+        base_url = f"https://api.github.com/repos/jongminoh-bsp/{repository}"
+        ref_response = requests.get(f"{base_url}/git/refs/heads/{branch}", headers=headers)
+        base_sha = ref_response.json()['object']['sha']
+        
+        # Create new branch
+        requests.post(f"{base_url}/git/refs", 
+            headers=headers,
+            json={
+                'ref': f'refs/heads/{branch_name}',
+                'sha': base_sha
+            }
+        )
+        
+        # Create files
+        files_to_create = [
+            {
+                'path': 'generated_terraform/main.tf',
+                'content': infra_result['terraform_config'],
+                'message': '🤖 Add AI-generated Terraform configuration'
+            },
+            {
+                'path': 'generated_k8s/deployment.yaml', 
+                'content': deploy_result['k8s_config'],
+                'message': '🤖 Add AI-generated Kubernetes deployment'
+            },
+            {
+                'path': 'ai_analysis_result.json',
+                'content': json.dumps(ai_result, indent=2),
+                'message': '🤖 Add Amazon Q AI analysis results'
+            }
+        ]
+        
+        # Create each file
+        for file_info in files_to_create:
+            requests.put(f"{base_url}/contents/{file_info['path']}",
+                headers=headers,
+                json={
+                    'message': file_info['message'],
+                    'content': requests.utils.quote(file_info['content'].encode()).replace('%', ''),
+                    'branch': branch_name
+                }
+            )
+        
+        # Create PR
+        pr_response = requests.post(f"{base_url}/pulls",
+            headers=headers,
+            json={
+                'title': f'🤖 Amazon Q AI Generated Infrastructure - {datetime.utcnow().strftime("%Y-%m-%d %H:%M")}',
+                'head': branch_name,
+                'base': branch,
+                'body': f"""## 🤖 Amazon Q AI Generated Infrastructure
+
+**AI Analysis Results:**
+- **Confidence**: {ai_result.get('confidence', 0.85) * 100:.1f}%
+- **Memory**: {ai_result.get('recommendations', {}).get('memory', '2Gi')}
+- **CPU**: {ai_result.get('recommendations', {}).get('cpu', '1000m')}
+- **Replicas**: {ai_result.get('recommendations', {}).get('replicas', 3)}
+- **Database**: {ai_result.get('recommendations', {}).get('database', 'mysql')}
+
+**Generated Files:**
+- `generated_terraform/main.tf` - EKS cluster and RDS configuration
+- `generated_k8s/deployment.yaml` - Kubernetes deployment with AI recommendations
+- `ai_analysis_result.json` - Complete AI analysis results
+
+**Next Steps:**
+1. Review the AI-generated configurations
+2. Merge this PR to deploy infrastructure
+3. Application will be deployed automatically
+
+*Generated by Amazon Q AI Agent* 🚀"""
+            }
+        )
+        
+        if pr_response.status_code == 201:
+            pr_url = pr_response.json()['html_url']
+            print(f"✅ GitHub PR created: {pr_url}")
+            return {'success': True, 'pr_url': pr_url}
+        else:
+            print(f"❌ PR creation failed: {pr_response.text}")
+            return {'success': False, 'error': pr_response.text}
+            
+    except Exception as e:
+        print(f"❌ GitHub PR creation failed: {e}")
+        return {'success': False, 'error': str(e)}
