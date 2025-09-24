@@ -1,0 +1,44 @@
+name: 🚀 Trigger Lambda Deploy
+
+on:
+  push:
+    branches: [dev, main]
+    paths: ['app/**']
+
+jobs:
+  trigger-lambda:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS CLI
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2
+    
+    - name: Trigger Amazon Q Lambda
+      run: |
+        echo "🚀 Triggering Amazon Q Lambda function..."
+        
+        # Invoke Lambda function
+        aws lambda invoke \
+          --function-name skyline-q-agent \
+          --payload '{"repository":"KDT","branch":"${{ github.ref_name }}","commit":"${{ github.sha }}","app_path":"app/"}' \
+          --cli-binary-format raw-in-base64-out \
+          response.json
+        
+        echo "📊 Lambda Response:"
+        cat response.json
+        
+        echo "✅ Amazon Q Lambda triggered successfully!"
+    
+    - name: Notify Completion
+      run: |
+        echo "🎉 Deployment pipeline initiated!"
+        echo "- Amazon Q Agent will analyze the app"
+        echo "- Infrastructure will be deployed via Lambda"
+        echo "- Application will be deployed automatically"
+        echo ""
+        echo "Check AWS Lambda logs for detailed progress."
