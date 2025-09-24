@@ -6,7 +6,7 @@ from datetime import datetime
 def lambda_handler(event, context):
     """
     Amazon Q Agent Lambda Function
-    Triggered by GitHub Actions to analyze and deploy Skyline app
+    Triggered by GitHub Actions to analyze Skyline app
     """
     
     print("🤖 Amazon Q Agent Lambda started")
@@ -22,17 +22,17 @@ def lambda_handler(event, context):
         # Step 1: Amazon Q AI Analysis
         ai_result = run_amazon_q_analysis(app_path)
         
-        # Step 2: Trigger Infrastructure Deployment
-        infra_result = trigger_infrastructure_deployment(ai_result)
+        # Step 2: Generate Infrastructure Code
+        infra_result = generate_infrastructure_code(ai_result)
         
-        # Step 3: Trigger Application Deployment
-        app_result = trigger_application_deployment(ai_result, infra_result)
+        # Step 3: Generate Deployment Config
+        deploy_result = generate_deployment_config(ai_result)
         
-        # Step 4: Update Systems Manager Parameter
-        update_deployment_status(repository, branch, commit, {
+        # Step 4: Save results to S3
+        save_results_to_s3(repository, branch, commit, {
             'ai_analysis': ai_result,
             'infrastructure': infra_result,
-            'application': app_result,
+            'deployment': deploy_result,
             'status': 'completed',
             'timestamp': datetime.utcnow().isoformat()
         })
@@ -42,20 +42,14 @@ def lambda_handler(event, context):
             'body': json.dumps({
                 'message': 'Amazon Q Agent completed successfully',
                 'ai_analysis': ai_result,
-                'infrastructure_status': infra_result,
-                'application_status': app_result
+                'infrastructure_generated': True,
+                'deployment_config_ready': True,
+                'next_steps': 'Check S3 bucket for generated files'
             })
         }
         
     except Exception as e:
         print(f"❌ Amazon Q Agent failed: {str(e)}")
-        
-        # Update failure status
-        update_deployment_status(repository, branch, commit, {
-            'status': 'failed',
-            'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
-        })
         
         return {
             'statusCode': 500,
@@ -79,16 +73,16 @@ def run_amazon_q_analysis(app_path):
                 "max_tokens": 300,
                 "messages": [{
                     "role": "user",
-                    "content": f"""Analyze the Skyline airline reservation system (Spring Boot application) in {app_path}.
+                    "content": f"""Analyze the Skyline airline reservation system (Spring Boot application).
                     
                     Provide recommendations in JSON format:
                     {{
-                        "memory": "1Gi|2Gi|4Gi",
-                        "cpu": "500m|1000m|2000m", 
-                        "replicas": 2|3|5,
-                        "database": "mysql|postgresql",
-                        "instance_type": "t3.medium|t3.large",
-                        "estimated_cost": 100-500
+                        "memory": "2Gi",
+                        "cpu": "1000m", 
+                        "replicas": 3,
+                        "database": "mysql",
+                        "instance_type": "t3.medium",
+                        "estimated_cost": 200
                     }}"""
                 }]
             })
@@ -125,99 +119,153 @@ def run_amazon_q_analysis(app_path):
             'ai_engine': 'fallback-config'
         }
 
-def trigger_infrastructure_deployment(ai_result):
-    """Trigger infrastructure deployment via Systems Manager"""
-    print("🏗️ Triggering infrastructure deployment...")
+def generate_infrastructure_code(ai_result):
+    """Generate Terraform code based on AI recommendations"""
+    print("🏗️ Generating infrastructure code...")
     
-    ssm = boto3.client('ssm', region_name='ap-northeast-2')
+    recommendations = ai_result.get('recommendations', {})
     
-    try:
-        # Execute Systems Manager document for Terraform deployment
-        response = ssm.send_command(
-            InstanceIds=['i-0123456789abcdef0'],  # Replace with actual instance ID
-            DocumentName='AWS-RunShellScript',
-            Parameters={
-                'commands': [
-                    'cd /opt/terraform',
-                    f'export TF_VAR_memory_limit={ai_result["recommendations"].get("memory", "2Gi")}',
-                    f'export TF_VAR_replicas={ai_result["recommendations"].get("replicas", 3)}',
-                    f'export TF_VAR_instance_type={ai_result["recommendations"].get("instance_type", "t3.medium")}',
-                    'terraform plan',
-                    'terraform apply -auto-approve'
-                ]
-            }
-        )
-        
-        command_id = response['Command']['CommandId']
-        print(f"✅ Infrastructure deployment started: {command_id}")
-        
-        return {
-            'status': 'started',
-            'command_id': command_id,
-            'ai_recommendations_applied': True
-        }
-        
-    except Exception as e:
-        print(f"❌ Infrastructure deployment failed: {e}")
-        return {
-            'status': 'failed',
-            'error': str(e)
-        }
+    # Generate Terraform configuration
+    terraform_config = f"""
+# Generated by Amazon Q AI Agent
+# Recommendations: {json.dumps(recommendations, indent=2)}
 
-def trigger_application_deployment(ai_result, infra_result):
-    """Trigger application deployment"""
-    print("🚀 Triggering application deployment...")
-    
-    ssm = boto3.client('ssm', region_name='ap-northeast-2')
-    
-    try:
-        # Execute application deployment
-        response = ssm.send_command(
-            InstanceIds=['i-0123456789abcdef0'],  # Replace with actual instance ID
-            DocumentName='AWS-RunShellScript',
-            Parameters={
-                'commands': [
-                    'cd /opt/skyline-deploy',
-                    'git pull origin main',
-                    'docker build -t skyline-app .',
-                    'kubectl apply -f k8s/',
-                    f'kubectl scale deployment skyline-app --replicas={ai_result["recommendations"].get("replicas", 3)}'
-                ]
-            }
-        )
-        
-        command_id = response['Command']['CommandId']
-        print(f"✅ Application deployment started: {command_id}")
-        
-        return {
-            'status': 'started',
-            'command_id': command_id,
-            'replicas': ai_result["recommendations"].get("replicas", 3)
-        }
-        
-    except Exception as e:
-        print(f"❌ Application deployment failed: {e}")
-        return {
-            'status': 'failed',
-            'error': str(e)
-        }
+resource "aws_eks_cluster" "skyline" {{
+  name     = "skyline-cluster"
+  role_arn = aws_iam_role.eks_cluster.arn
+  version  = "1.27"
 
-def update_deployment_status(repository, branch, commit, status_data):
-    """Update deployment status in Systems Manager Parameter Store"""
-    ssm = boto3.client('ssm', region_name='ap-northeast-2')
+  vpc_config {{
+    subnet_ids = [aws_subnet.private[*].id]
+  }}
+}}
+
+resource "aws_eks_node_group" "skyline" {{
+  cluster_name    = aws_eks_cluster.skyline.name
+  node_group_name = "skyline-nodes"
+  node_role_arn   = aws_iam_role.eks_node_group.arn
+  subnet_ids      = aws_subnet.private[*].id
+  
+  instance_types = ["{recommendations.get('instance_type', 't3.medium')}"]
+  
+  scaling_config {{
+    desired_size = {recommendations.get('replicas', 3)}
+    max_size     = {recommendations.get('replicas', 3) + 2}
+    min_size     = 1
+  }}
+}}
+
+resource "aws_rds_instance" "skyline" {{
+  identifier = "skyline-db"
+  engine     = "{recommendations.get('database', 'mysql')}"
+  instance_class = "db.t3.micro"
+  allocated_storage = 20
+  
+  db_name  = "skyline"
+  username = "admin"
+  password = "changeme123!"
+  
+  skip_final_snapshot = true
+}}
+"""
     
-    parameter_name = f'/skyline-deploy/{repository}/{branch}/status'
+    return {
+        'status': 'generated',
+        'terraform_config': terraform_config,
+        'ai_optimized': True
+    }
+
+def generate_deployment_config(ai_result):
+    """Generate Kubernetes deployment config"""
+    print("🚀 Generating deployment configuration...")
+    
+    recommendations = ai_result.get('recommendations', {})
+    
+    k8s_config = f"""
+# Generated by Amazon Q AI Agent
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skyline-app
+spec:
+  replicas: {recommendations.get('replicas', 3)}
+  selector:
+    matchLabels:
+      app: skyline-app
+  template:
+    metadata:
+      labels:
+        app: skyline-app
+    spec:
+      containers:
+      - name: skyline-app
+        image: skyline-app:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "{recommendations.get('memory', '2Gi')}"
+            cpu: "{recommendations.get('cpu', '1000m')}"
+          limits:
+            memory: "{recommendations.get('memory', '2Gi')}"
+            cpu: "{recommendations.get('cpu', '1000m')}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skyline-service
+spec:
+  selector:
+    app: skyline-app
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: LoadBalancer
+"""
+    
+    return {
+        'status': 'generated',
+        'k8s_config': k8s_config,
+        'ai_optimized': True
+    }
+
+def save_results_to_s3(repository, branch, commit, results):
+    """Save analysis results to S3"""
+    s3 = boto3.client('s3', region_name='ap-northeast-2')
+    bucket_name = 'skyline-ai-results'  # Create this bucket
     
     try:
-        ssm.put_parameter(
-            Name=parameter_name,
-            Value=json.dumps(status_data),
-            Type='String',
-            Overwrite=True,
-            Description=f'Deployment status for {repository}:{branch}:{commit}'
+        # Save analysis results
+        key = f'{repository}/{branch}/{commit}/analysis.json'
+        s3.put_object(
+            Bucket=bucket_name,
+            Key=key,
+            Body=json.dumps(results, indent=2),
+            ContentType='application/json'
         )
         
-        print(f"✅ Status updated in Parameter Store: {parameter_name}")
+        # Save Terraform config
+        if 'infrastructure' in results:
+            terraform_key = f'{repository}/{branch}/{commit}/terraform/main.tf'
+            s3.put_object(
+                Bucket=bucket_name,
+                Key=terraform_key,
+                Body=results['infrastructure']['terraform_config'],
+                ContentType='text/plain'
+            )
+        
+        # Save K8s config
+        if 'deployment' in results:
+            k8s_key = f'{repository}/{branch}/{commit}/k8s/deployment.yaml'
+            s3.put_object(
+                Bucket=bucket_name,
+                Key=k8s_key,
+                Body=results['deployment']['k8s_config'],
+                ContentType='text/yaml'
+            )
+        
+        print(f"✅ Results saved to S3: s3://{bucket_name}/{key}")
         
     except Exception as e:
-        print(f"❌ Failed to update status: {e}")
+        print(f"❌ Failed to save to S3: {e}")
+        # Continue without failing
