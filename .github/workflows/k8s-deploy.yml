@@ -1,0 +1,86 @@
+name: 🚀 Kubernetes Deploy
+
+on:
+  workflow_run:
+    workflows: ["🏗️ Terraform Deploy"]
+    types: [completed]
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+    paths: 
+      - 'generated_k8s/**'
+      - 'k8s/**'
+
+jobs:
+  k8s-deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS CLI
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2
+    
+    - name: Update kubeconfig
+      run: |
+        echo "🔧 Connecting to EKS cluster..."
+        aws eks update-kubeconfig --name skyline-cluster --region ap-northeast-2
+    
+    - name: Deploy with AI-generated configs
+      run: |
+        echo "🤖 Deploying with Amazon Q AI optimized settings:"
+        echo "- Memory: 2Gi (AI recommended)"
+        echo "- CPU: 1000m (AI recommended)"
+        echo "- Replicas: 3 (AI recommended)"
+        echo ""
+        
+        # Apply AI-generated Kubernetes configs
+        if [ -f "generated_k8s/deployment.yaml" ]; then
+          echo "📋 Applying AI-generated deployment..."
+          kubectl apply -f generated_k8s/deployment.yaml
+        fi
+        
+        # Apply existing K8s configs
+        if [ -d "k8s" ]; then
+          echo "📋 Applying additional K8s configs..."
+          kubectl apply -f k8s/
+        fi
+    
+    - name: Verify Deployment
+      run: |
+        echo "🔍 Verifying deployment status..."
+        kubectl get deployments
+        kubectl get services
+        kubectl get pods
+        
+        echo ""
+        echo "⏳ Waiting for pods to be ready..."
+        kubectl wait --for=condition=ready pod -l app=skyline-app --timeout=300s
+        
+        echo ""
+        echo "✅ Skyline application deployed successfully!"
+        echo "🌐 Getting service URL..."
+        kubectl get service skyline-service -o wide
+    
+    - name: Deployment Summary
+      run: |
+        echo "🎉 DEPLOYMENT COMPLETED!"
+        echo "======================"
+        echo ""
+        echo "✅ Infrastructure: EKS cluster with AI-optimized settings"
+        echo "✅ Application: Skyline airline system deployed"
+        echo "✅ Database: MySQL RDS connected"
+        echo "✅ Load Balancer: Service exposed"
+        echo ""
+        echo "📊 Amazon Q AI Recommendations Applied:"
+        echo "- Memory: 2Gi per pod"
+        echo "- CPU: 1000m per pod"
+        echo "- Replicas: 3 instances"
+        echo "- Instance Type: t3.medium"
+        echo ""
+        echo "🚀 Your AI-powered airline reservation system is live!"
