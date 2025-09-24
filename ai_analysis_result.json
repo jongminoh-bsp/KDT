@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "recommendations": {
+    "memory": "2Gi",
+    "cpu": "1000m",
+    "replicas": 3,
+    "database": "mysql",
+    "instance_type": "t3.medium"
+  },
+  "ai_response": "Sure, I can analyze the Spring Boot airline app and provide recommendations based on the given parameters.\n\n1. **Memory**: The recommended memory allocation of 2Gi (2 gigabytes) should provide sufficient memory for the application to run smoothly, handling the expected workload. This memory allocation should cater to the application's runtime requirements, including the Java Virtual Machine (JVM) and any additional libraries or dependencies used by the application.\n\n2. **CPU**: The recommended CPU allocation of 1000m (1 core) should provide adequate processing power for the application to handle the expected workload. This CPU allocation should be sufficient for the application's business logic, data processing, and any other computational tasks performed by the application.\n\n3. **Replicas**: The recommended number of replicas is 3. This ensures high availability and fault tolerance for the application. If one instance of the application fails or becomes unavailable, the other two instances can continue",
+  "confidence": 0.95,
+  "ai_engine": "amazon-bedrock-claude-seoul",
+  "timestamp": "2025-09-24T01:07:42.325653"
+}
