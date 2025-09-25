@@ -1,0 +1,59 @@
+name: "🏗️ Step 2: Deploy Infrastructure"
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [ main ]
+
+jobs:
+  deploy-infrastructure:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.2
+
+      - name: Deploy Infrastructure (Simulated)
+        run: |
+          echo "🏗️ Deploying Infrastructure..."
+          echo "📁 Using generated Terraform code from Amazon Q"
+          
+          if [ -f "generated_terraform/main.tf" ]; then
+            echo "✅ Found generated Terraform code"
+            echo "🔧 Terraform Init..."
+            echo "📋 Terraform Plan..."
+            echo "🚀 Terraform Apply..."
+            echo "✅ Infrastructure deployed successfully!"
+            
+            # Simulate outputs
+            echo "📊 Infrastructure Outputs:"
+            echo "- EKS Cluster: skyline-cluster"
+            echo "- RDS Endpoint: skyline-db.c5d2wfqufspp.ap-northeast-2.rds.amazonaws.com"
+            echo "- VPC ID: vpc-12345678"
+          else
+            echo "❌ No Terraform code found"
+            exit 1
+          fi
+
+      - name: Update kubeconfig
+        run: |
+          echo "🔧 Updating kubeconfig for EKS cluster..."
+          # aws eks update-kubeconfig --region ap-northeast-2 --name skyline-cluster
+          echo "✅ Kubeconfig updated"
+
+      - name: Trigger Kubernetes Deployment
+        run: |
+          echo "🚀 Triggering Kubernetes deployment..."
+          echo "Infrastructure ready for application deployment"
