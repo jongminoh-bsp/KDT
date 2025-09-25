@@ -18,8 +18,9 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jre-alpine
 RUN addgroup -S skyline && adduser -S skyline -G skyline
 
-# 헬스체크를 위한 curl 설치
-RUN apk add --no-cache curl
+# 헬스체크를 위한 curl 설치 및 Datadog Java Agent 다운로드
+RUN apk add --no-cache curl wget && \
+    wget -O /dd-java-agent.jar https://dtdg.co/latest-java-tracer
 
 WORKDIR /app
 COPY --from=backend-build /app/target/*.jar app.jar
@@ -40,6 +41,13 @@ ENV DB_USER=skyline_user
 ENV DB_PASSWORD=changeme
 ENV DB_CONNECTION_POOL_SIZE=10
 
+# Datadog APM 환경변수
+ENV DD_SERVICE=skyline
+ENV DD_ENV=production
+ENV DD_VERSION=1.0.0
+ENV DD_AGENT_HOST=datadog-agent.datadog.svc.cluster.local
+ENV DD_TRACE_AGENT_PORT=8126
+
 # 포트 노출
 EXPOSE 8080
 
@@ -47,5 +55,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
 
-# 애플리케이션 실행
-CMD ["java", "-jar", "-Dspring.profiles.active=production", "app.jar"]
+# 애플리케이션 실행 (Datadog APM 활성화)
+CMD ["java", "-javaagent:/dd-java-agent.jar", "-jar", "-Dspring.profiles.active=production", "app.jar"]
