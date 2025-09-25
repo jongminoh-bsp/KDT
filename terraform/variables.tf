@@ -73,11 +73,12 @@ variable "db_name" {
 variable "db_username" {
   description = "Database username"
   type        = string
-  default     = "admin"
+  default     = "skyline_ojm"
 }
 
 variable "db_password" {
   description = "Database password"
   type        = string
   sensitive   = true
+  default     = "skyline1267"
 }
