@@ -2,6 +2,7 @@
 """
 Skyline System Demo Application
 간단한 Flask 웹 애플리케이션
+Updated: 2025-09-25 11:07 - Amazon Q 워크플로 테스트
 """
 
 from flask import Flask, jsonify
@@ -12,17 +13,23 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     return jsonify({
-        "message": "Skyline System Demo",
+        "message": "Skyline System Demo - Updated for Amazon Q",
         "status": "running",
-        "version": "1.0.0",
-        "environment": os.getenv("ENVIRONMENT", "demo")
+        "version": "1.1.0",
+        "environment": os.getenv("ENVIRONMENT", "demo"),
+        "updated": "2025-09-25T11:07:00Z"
     })
 
 @app.route('/health')
 def health():
-    return jsonify({"status": "healthy"})
+    return jsonify({"status": "healthy", "amazon_q": "enabled"})
+
+@app.route('/demo')
+def demo():
+    return jsonify({
+        "demo": "Amazon Q Auto Infrastructure Generation",
+        "features": ["terraform", "kubernetes", "auto-deploy"]
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
-# Updated
-# Updated
