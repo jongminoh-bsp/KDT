@@ -6,12 +6,18 @@ on:
     paths:
       - 'app/**'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   trigger-analysis:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
